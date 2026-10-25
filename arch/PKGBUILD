@@ -23,6 +23,14 @@ package() {
 #!/bin/bash
 export LD_LIBRARY_PATH="/opt/bambu-studio/bin:${LD_LIBRARY_PATH}"
 export LC_ALL=C
+
+# Workaround for Arch Linux gdk-pixbuf2 / glycin (bwrap) crash when loading
+# symlinked SVG icons from user icon themes in ~/.local/share/icons (e.g. Tela).
+# Redirecting XDG_DATA_HOME makes GTK fall back to /usr/share/icons (which is
+# mounted inside the bwrap sandbox) without affecting ~/.config/BambuStudio settings.
+export XDG_DATA_HOME="${HOME}/.config/BambuStudio/xdg-data"
+mkdir -p "${XDG_DATA_HOME}"
+
 exec /opt/bambu-studio/bin/bambu-studio "$@"
 EOF
   chmod 755 "${pkgdir}/usr/bin/bambu-studio"
