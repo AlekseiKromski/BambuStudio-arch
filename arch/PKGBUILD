@@ -1,0 +1,37 @@
+pkgname=bambu-studio
+pkgver=@PKGVER@
+pkgrel=1
+pkgdesc="Bambu Lab Studio 3D printing slicer"
+arch=('x86_64')
+url="https://github.com/bambulab/BambuStudio"
+license=('AGPL-3.0-only')
+depends=(
+  'gtk3' 'webkit2gtk-4.1' 'gstreamer' 'gst-plugins-base'
+  'libsecret' 'libmspack' 'glew' 'glu' 'mesa'
+  'libxkbcommon' 'curl' 'openssl' 'dbus' 'bzip2' 'x264'
+)
+options=('!strip' '!debug')
+
+package() {
+  install -dm755 "${pkgdir}/opt/bambu-studio/bin"
+  install -Dm755 /BambuStudio/build/src/bambu-studio "${pkgdir}/opt/bambu-studio/bin/bambu-studio"
+  cp -P /BambuStudio/build/src/*.so* "${pkgdir}/opt/bambu-studio/bin/"
+  cp -r /BambuStudio/resources "${pkgdir}/opt/bambu-studio/resources"
+
+  install -dm755 "${pkgdir}/usr/bin"
+  cat << 'EOF' > "${pkgdir}/usr/bin/bambu-studio"
+#!/bin/bash
+export LD_LIBRARY_PATH="/opt/bambu-studio/bin:${LD_LIBRARY_PATH}"
+export LC_ALL=C
+exec /opt/bambu-studio/bin/bambu-studio "$@"
+EOF
+  chmod 755 "${pkgdir}/usr/bin/bambu-studio"
+
+  install -Dm644 /BambuStudio/src/platform/unix/BambuStudio.desktop \
+    "${pkgdir}/usr/share/applications/BambuStudio.desktop"
+
+  for size in 32 128 192; do
+    install -Dm644 "/BambuStudio/resources/images/BambuStudio_${size}px.png" \
+      "${pkgdir}/usr/share/icons/hicolor/${size}x${size}/apps/BambuStudio.png"
+  done
+}

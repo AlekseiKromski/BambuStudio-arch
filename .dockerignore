@@ -26,3 +26,5 @@ SVG
 Dockerfile
 DockerBuild.sh
 DockerRun.sh
+.git
+out
