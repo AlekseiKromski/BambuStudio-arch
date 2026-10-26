@@ -38,63 +38,52 @@ Following platforms are currently supported to compile:
 
 ## Arch Linux / EndeavourOS Packaging (`.pkg.tar.zst` via Docker)
 
-This repository includes a self-contained Docker build pipeline (`arch.Dockerfile`, `arch/build.sh`, and `arch/PKGBUILD`) that compiles Bambu Studio inside an isolated `archlinux:base-devel` container and exports a native `pacman` installer package (`bambu-studio-<version>-1-x86_64.pkg.tar.zst`) without installing any build-time compilers or `-dev` libraries on your host machine.
+Builds a native `pacman` package (`bambu-studio-<version>-1-x86_64.pkg.tar.zst`) inside an isolated `archlinux:base-devel` Docker container (`arch.Dockerfile`, `arch/build.sh`, `arch/PKGBUILD`).
+
+### Key Arch Linux Adaptations
+* **Removed Obsolete `OSMesa` Link Target:** Removed `OSMesa` from `src/slic3r/CMakeLists.txt` (no longer shipped in Arch's `mesa` package).
+* **Parallel Job Control (`arch/build.sh`):** Supports `--build-arg JOBS=<N>` to cap parallel C++ compiler threads and prevent Out-Of-Memory (`SIGKILL`) crashes.
+* **Isolated `XDG_DATA_HOME` Wrapper (`arch/PKGBUILD`):** Sets `XDG_DATA_HOME="${HOME}/.config/BambuStudio/xdg-data"` in `/usr/bin/bambu-studio` to prevent `gdk-pixbuf2` / `glycin` (`bwrap`) crashes on symlinked user icon themes.
 
 ### 1. Build the `.pkg.tar.zst` Installer
-From the repository root, run:
 ```bash
-DOCKER_BUILDKIT=1 docker build -f arch.Dockerfile -o type=local,dest=./out .
+DOCKER_BUILDKIT=1 docker build -f arch.Dockerfile --build-arg JOBS=4 -o type=local,dest=./out .
 ```
-* **Parallel jobs / RAM control:** By default, `arch/build.sh` automatically limits parallel compilation threads based on available system RAM (~2.5 GB per thread). To override the thread count manually, pass `--build-arg JOBS=<N>`:
-  ```bash
-  DOCKER_BUILDKIT=1 docker build -f arch.Dockerfile --build-arg JOBS=4 -o type=local,dest=./out .
-  ```
-* **Output:** When the build finishes, the native Arch package will be saved in `./out/bambu-studio-<version>-1-x86_64.pkg.tar.zst`.
+* **How to calculate `JOBS`:** Each compiler thread uses **~3.5–4 GB of RAM** at peak (`JOBS = Available_RAM_GB / 4`, e.g. `16 GB → 4`, `24 GB → 6`, `32 GB → 8`). If using Docker Desktop, use the VM RAM limit set in *Settings → Resources*.
+* **Output:** `./out/bambu-studio-<version>-1-x86_64.pkg.tar.zst`
 
-### 2. Install, Update, or Uninstall via `pacman`
-* **Install or Upgrade:**
-  ```bash
-  sudo pacman -U ./out/bambu-studio-*.pkg.tar.zst
-  ```
-  `pacman` will automatically resolve and install any missing runtime dependencies, register the desktop launcher and icons, and associate `.3mf`/`.stl` files. When upgrading from an older version, `pacman -U` cleanly replaces the previous package while leaving your user profiles and settings in `~/.config/BambuStudio` untouched.
-* **Uninstall:**
-  ```bash
-  sudo pacman -R bambu-studio
-  ```
+### 2. Install, Run, or Uninstall
+```bash
+# Install or upgrade (preserves ~/.config/BambuStudio):
+sudo pacman -U ./out/bambu-studio-*.pkg.tar.zst
 
-### 3. How to Maintain & Update to a New Stable Release
-The `arch-stable` branch sits directly on top of an official stable release tag (e.g., `v02.08.02.61`) with two custom commits:
-1. `fix(linux): remove obsolete OSMesa link target for Arch Linux`
-2. `feat(arch): add Docker .pkg.tar.zst builder and maintenance docs`
+# Run:
+bambu-studio
 
-When Bambu Lab publishes a new stable release tag on GitHub (for example, `v02.09.00.50`):
+# Uninstall:
+sudo pacman -R bambu-studio
+```
 
-1. **Fetch the latest tags from the official upstream repository:**
-   ```bash
-   # Add upstream once if you haven't already:
-   git remote add upstream https://github.com/bambulab/BambuStudio.git
+### 3. Maintain & Update to a New Stable Release
+When Bambu Lab publishes a new stable release tag (e.g. `v02.09.00.50`):
 
-   # Fetch all new release tags:
-   git fetch upstream --tags
-   ```
-2. **Rebase your custom `arch-stable` commits onto the new stable tag:**
-   ```bash
-   # Replace v02.08.02.61 with your current base tag, and v02.09.00.50 with the new stable tag:
-   git rebase --onto v02.09.00.50 v02.08.02.61 arch-stable
-   ```
-   *(Alternatively, you can reset `arch-stable` to the new tag and cherry-pick the two commits: `git checkout -B arch-stable v02.09.00.50 && git cherry-pick <commit1> <commit2>`).*
-3. **Tag and push to your fork (optional):**
-   ```bash
-   git tag v02.09.00.50-arch
-   git push origin arch-stable --force-with-lease --tags
-   ```
-4. **Build and install the updated package:**
-   ```bash
-   rm -rf ./out
-   DOCKER_BUILDKIT=1 docker build -f arch.Dockerfile -o type=local,dest=./out .
-   sudo pacman -U ./out/bambu-studio-*.pkg.tar.zst
-   ```
-   *(Note: Because `arch.Dockerfile` caches the `deps/` build in a separate Docker layer, Docker will automatically reuse the compiled dependencies layer if `deps/` did not change between releases).*
+```bash
+# 1. Fetch upstream tags (add remote once with: git remote add upstream https://github.com/bambulab/BambuStudio.git)
+git fetch upstream --tags
+
+# 2. Rebase arch-stable commits onto the new release tag
+git rebase --onto v02.09.00.50 v02.08.02.61 arch-stable
+
+# 3. Tag and push to fork
+git tag -a v02.09.00.50-arch -m "Bambu Studio v02.09.00.50 for Arch Linux"
+git push origin arch-stable --force-with-lease
+git push origin v02.09.00.50-arch
+
+# 4. Build and install
+rm -rf ./out
+DOCKER_BUILDKIT=1 docker build -f arch.Dockerfile --build-arg JOBS=4 -o type=local,dest=./out .
+sudo pacman -U ./out/bambu-studio-*.pkg.tar.zst
+```
 
 # Report issue
 You can add an issue to the [github tracker](https://github.com/bambulab/BambuStudio/issues) if **it isn't already present.**
