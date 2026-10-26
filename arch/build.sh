@@ -42,6 +42,9 @@ build_app() {
         -DCMAKE_PREFIX_PATH="${ROOT_DIR}/deps/build/destdir/usr/local" \
         -DSLIC3R_STATIC=1 \
         -DSLIC3R_GTK=3 \
+        -DSLIC3R_PCH=OFF \
+        -DCMAKE_CXX_FLAGS="-g0 --param ggc-min-expand=10 --param ggc-min-heapsize=32768" \
+        -DCMAKE_EXE_LINKER_FLAGS="-Wl,--no-keep-memory" \
         -DCMAKE_BUILD_TYPE=Release \
         -DBBL_RELEASE_TO_PUBLIC=1 \
         -DBBL_INTERNAL_TESTING=0
